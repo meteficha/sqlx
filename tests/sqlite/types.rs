@@ -38,6 +38,7 @@ mod chrono {
     use sqlx::types::chrono::{
         DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, TimeZone, Utc,
     };
+    use sqlx_test::test_decode_type;
 
     test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite,
         "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
@@ -45,6 +46,12 @@ mod chrono {
 
     test_type!(chrono_date_time_utc<DateTime::<Utc>>(Sqlite,
         "'1996-12-20T00:39:57+00:00'" == Utc.ymd(1996, 12, 20).and_hms(0, 39, 57)
+    ));
+
+    test_decode_type!(chrono_date_time_utc_decode<DateTime::<Utc>>(Sqlite,
+        "'1996-12-20 00:39:57.123'" == Utc.ymd(1996, 12, 20).and_hms_milli(0, 39, 57, 123),
+        "CAST(2459028.37981481 AS FLOAT)" == Utc.ymd(2020, 06, 27).and_hms(21, 06, 56),
+        //"1092941466" == Utc.ymd(2004, 08, 19).and_hms(18, 51, 06)
     ));
 
     test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite,

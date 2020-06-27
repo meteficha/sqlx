@@ -4,6 +4,7 @@ use crate::{
     error::BoxDynError,
     sqlite::{type_info::DataType, Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef},
     types::Type,
+    value::ValueRef,
 };
 use chrono::prelude::*;
 
@@ -22,6 +23,17 @@ impl Encode<'_, Sqlite> for NaiveDateTime {
 
 impl<'a> Decode<'a, Sqlite> for NaiveDateTime {
     fn decode(value: SqliteValueRef<'a>) -> Result<Self, BoxDynError> {
+        println!("YYY: {:?}", value.type_info());
+        if let Some(type_info) = value.type_info() {
+            println!("XXX: {:?}", type_info.0);
+            match type_info.0 {
+                DataType::Int | DataType::Int64 => {
+                    return Ok(NaiveDateTime::from_timestamp(value.int64(), 0))
+                }
+                DataType::Float => return Ok(decode_naive_from_julian(value.double())),
+                _ => (),
+            }
+        }
         decode_naive_from_text(value.text()?)
     }
 }
@@ -53,6 +65,14 @@ fn decode_naive_from_text(text: &str) -> Result<NaiveDateTime, BoxDynError> {
     }
 
     return Err(err_protocol!("Did not find a matching pattern").into());
+}
+
+fn decode_naive_from_julian(julian: f64) -> NaiveDateTime {
+    const UNIX_EPOCH: f64 = 2440587.5;
+    const SECONDS_IN_DAY: f64 = 86400.0;
+    let unix_timestamp_f = (julian - UNIX_EPOCH) * SECONDS_IN_DAY;
+    let unix_timestamp = unix_timestamp_f.round() as i64;
+    NaiveDateTime::from_timestamp(unix_timestamp, 0)
 }
 
 impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
